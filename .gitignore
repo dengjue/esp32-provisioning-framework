@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino build artifacts
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+build/
+
+# Local overrides (copy from app_config.h.example)
+# src/app/app_config.h

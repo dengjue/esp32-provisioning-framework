@@ -31,7 +31,7 @@ void MqttTransport::loop() {
   }
 }
 
-bool MqttTransport::isConnected() const {
+bool MqttTransport::isConnected() {
   return client.connected();
 }
 

@@ -14,7 +14,7 @@
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1000);  // USB CDC 就绪需要时间
   BemfaFramework::begin(getAppConfig());
 }
 

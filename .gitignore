@@ -19,5 +19,5 @@
 *.map
 build/
 
-# Local overrides (copy from app_config.h.example)
-# src/app/app_config.h
+# Local secrets (copy from .env.example)
+.env

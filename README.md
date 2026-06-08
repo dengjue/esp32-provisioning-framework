@@ -6,19 +6,20 @@ ESP32 二次开发框架：巴法云 BLE 配网、MQTT 连接、LED 状态指示
 
 ## 功能
 
-- 巴法 App BLE 配网，WiFi 凭证持久化到 Flash
+- 巴法云 BLE 配网，WiFi 凭证持久化到 Flash
 - MQTT 自动连接与断线重连
 - NeoPixel LED 状态指示（配网 / 连接 / 运行）
 - WiFi 丢失后自动重连，失败则重新进入配网模式
+- PlatformIO 支持 `.env` 注入配置，敏感信息不提交 Git
 
 ## 硬件要求
 
 | 项目 | 默认值 | 说明 |
 |------|--------|------|
 | 芯片 | ESP32 / ESP32-S3 | 框架本身通用；默认 LED 引脚按 S3 开发板配置 |
-| LED 引脚 | GPIO 48 | 在 `app_config.h` 中 `#define LED_PIN` 覆盖 |
+| LED 引脚 | GPIO 48 | 在 `app_config.h` 或 `.env` 中 `LED_PIN` 覆盖 |
 | LED 数量 | 1 | `#define LED_COUNT` |
-| 串口波特率 | 115200 | — |
+| 串口波特率 | 115200 | ESP32-S3 通过 USB CDC 输出日志 |
 
 > 若使用 ESP32 经典版（DevKit），请将 `LED_PIN` 改为实际接线引脚（如 GPIO 2），PlatformIO 的 `esp32dev` 环境已内置该覆盖。
 
@@ -27,11 +28,11 @@ ESP32 二次开发框架：巴法云 BLE 配网、MQTT 连接、LED 状态指示
 ```
 esp32-provisioning-framework/
 ├── esp32-provisioning-framework.ino   # 入口（通常不改）
-├── platformio.ini                     # 可选，供 PlatformIO / Cursor 使用
+├── platformio.ini                     # PlatformIO 配置
+├── .env.example                       # 本地配置模板（复制为 .env）
+├── ble.DN5U7Nlv.png                   # BLE 配网微信小程序码
+├── scripts/load_env.py                # 编译前读取 .env
 ├── LICENSE
-├── .workbuddy/skills/                 # AI 辅助开发 skill 文档
-│   ├── esp32-bemfa-ble-provisioning/  # 巴法 BLE 配网协议
-│   └── led-nonblocking/               # 非阻塞 LED 控制器
 └── src/
     ├── framework/                     # 框架层（基础设施）
     │   ├── bemfa_framework.*          # 核心状态机与生命周期
@@ -43,60 +44,155 @@ esp32-provisioning-framework/
     │   ├── led_status.*
     │   └── framework_config.h         # 框架默认参数
     └── app/                           # 业务层（你来改这里）
-        ├── app_config.h               # MQTT、设备名、引脚覆盖
-        ├── app_config.h.example       # 配置模板
+        ├── app_config.h               # 非敏感默认值
+        ├── app_config.h.example       # Arduino IDE 配置模板
         └── app_handlers.cpp           # onMqttMessage 等业务逻辑
 ```
 
-## 快速开始
+## 配置 MQTT（推荐：`.env`）
 
-### 方式 A：Arduino IDE（推荐新手）
+敏感信息（服务器地址、Topic 等）放在项目根目录的 `.env`，**不会提交到 Git**。
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```ini
+MQTT_BROKER=your.broker.ip
+MQTT_PORT=1883
+MQTT_TOPIC=your/topic
+DEVICE_NAME=ESP32_LED
+```
+
+> `.env` 在 **编译时** 注入固件。每次修改后必须重新编译并烧录，仅重启设备不会生效。
+
+Arduino IDE 用户请直接编辑 `src/app/app_config.h`（参考 `app_config.h.example`）。
+
+## 烧录固件
+
+### 前置条件
+
+- 已安装 [PlatformIO](https://platformio.org/)（Cursor / VS Code 扩展，或独立 CLI）
+- ESP32 开发板通过 USB 连接到电脑
+- 已完成 `.env` 配置（PlatformIO 用户）
+
+### 查看串口
+
+macOS 上通常为 `/dev/cu.usbmodem*` 或 `/dev/cu.usbserial*`：
+
+```bash
+ls /dev/cu.*
+```
+
+### 编译并烧录（ESP32-S3，默认环境）
+
+在项目根目录执行：
+
+```bash
+pio run -e esp32-s3-devkitc-1 -t upload --upload-port /dev/cu.usbmodem1101
+```
+
+将 `--upload-port` 换成你实际的串口。若已安装 PlatformIO 但 `pio` 不在 PATH，可使用完整路径，例如：
+
+```bash
+~/.platformio/penv/bin/pio run -e esp32-s3-devkitc-1 -t upload --upload-port /dev/cu.usbmodem1101
+```
+
+编译时若看到 `Loaded from .env: MQTT_BROKER, MQTT_PORT, ...`，说明配置已注入。
+
+### ESP32 经典版（DevKit）
+
+```bash
+pio run -e esp32dev -t upload --upload-port /dev/cu.usbserial-XXXX
+```
+
+### 常见问题
+
+| 现象 | 处理 |
+|------|------|
+| `Resource busy` / 端口被占用 | 先 `Ctrl+C` 关闭串口监视器，再烧录 |
+| 日志仍显示 `your.broker.ip` | 修改 `.env` 后未重新烧录；执行 clean + upload |
+| ESP32-S3 无串口输出 | 确认 `platformio.ini` 中已启用 `ARDUINO_USB_CDC_ON_BOOT=1` |
+
+仅重新编译（不烧录）：
+
+```bash
+pio run -e esp32-s3-devkitc-1
+```
+
+清理后完整重编：
+
+```bash
+pio run -e esp32-s3-devkitc-1 -t clean
+pio run -e esp32-s3-devkitc-1 -t upload --upload-port /dev/cu.usbmodem1101
+```
+
+### Arduino IDE（可选）
 
 1. 安装 [Arduino IDE 2.x](https://www.arduino.cc/en/software)
 2. **文件 → 首选项 → 附加开发板管理器网址**，添加：
    ```
    https://espressif.github.io/arduino-esp32/package_esp32_index.json
    ```
-3. **工具 → 开发板 → 开发板管理器**，搜索并安装 **esp32 by Espressif Systems**
-4. **工具 → 管理库**，安装依赖：
-   - [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
-   - [PubSubClient](https://github.com/knolleary/pubsubclient)
-   - [Adafruit NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel)
-   - [ArduinoJson](https://arduinojson.org/)
-5. 用 Arduino IDE 打开本文件夹（含 `.ino` 的目录）
-6. 复制 `src/app/app_config.h.example` 为参考，编辑 `src/app/app_config.h` 填入 MQTT 地址和 Topic
-7. 选择开发板（如 **ESP32S3 Dev Module**）和串口，点击上传
-8. 烧录后用 [巴法 App](https://bemfa.com/) 完成 BLE 配网
+3. **工具 → 开发板 → 开发板管理器**，安装 **esp32 by Espressif Systems**
+4. **工具 → 管理库**，安装：NimBLE-Arduino、PubSubClient、Adafruit NeoPixel、ArduinoJson
+5. 编辑 `src/app/app_config.h`，选择开发板与串口，点击上传
 
-### 方式 B：PlatformIO（Cursor / VS Code）
+## 查看串口日志
 
-1. 安装 [PlatformIO IDE](https://platformio.org/) 扩展
-2. 用 VS Code / Cursor 打开本文件夹（根目录含 `platformio.ini`）
-3. 编辑 `src/app/app_config.h`
-4. 底部选择环境（默认 `esp32-s3-devkitc-1`）和串口，点击 **Upload**
+波特率 **115200**。烧录与监视器**不能同时占用**同一串口。
 
-## BLE 配网步骤
+### PlatformIO 串口监视器
 
-1. 设备首次启动或无可用 WiFi 时，LED **蓝色持续闪烁**，表示进入配网模式
-2. 手机打开 **巴法 App**，添加设备，选择 BLE 配网
-3. 按 App 提示连接设备蓝牙，填写 WiFi 名称和密码
-4. 配网成功后 LED **绿色快速闪 3 次**；MQTT 连接成功后 **蓝色快速闪 3 次**
+```bash
+pio device monitor -p /dev/cu.usbmodem1101 -b 115200
+```
+
+退出：`Ctrl+C`。
+
+### 正常启动日志示例
+
+```
+[Framework] Starting up...
+[Framework] Checking WiFi configuration...
+[WiFi] Reconnected! IP: 192.168.x.x
+[Framework] WiFi connected, starting MQTT...
+[MQTT] Connecting to your.broker.ip:1883...
+[MQTT] Connected
+[MQTT] Subscribed to topic: your/topic
+```
+
+若无输出，按一下开发板 **RESET** 键。ESP32-S3 建议在烧录完成后再打开监视器。
+
+## BLE 配网
+
+设备首次启动、无 WiFi 配置或连接失败时，LED **蓝色持续闪烁**，表示进入配网模式。
+
+### 微信小程序扫码配网
+
+使用微信扫描下方小程序码，按提示完成 BLE 配网：
+
+![BLE 配网微信小程序码](ble.DN5U7Nlv.png)
+
+### 配网步骤
+
+1. 确认设备 LED **蓝色持续闪烁**（配网模式）
+2. 微信扫描上方小程序码，打开配网小程序
+3. 按提示连接设备蓝牙，填写 WiFi 名称和密码
+4. 配网成功：LED **绿色快速闪 3 次**
+5. MQTT 连接成功：LED **蓝色快速闪 3 次**
+
+也可使用 [巴法 App](https://bemfa.com/) 完成 BLE 配网。
 
 ## 二次开发指南
-
-### 修改 MQTT 配置
-
-编辑 `src/app/app_config.h`（可参考 `app_config.h.example`）：
-
-```cpp
-#define MQTT_BROKER "your.broker.ip"
-#define MQTT_PORT   1883
-#define MQTT_TOPIC  "your/topic"
-```
 
 ### 处理 MQTT 消息
 
 在 `src/app/app_handlers.cpp` 的 `handleLedColorMessage`（或新建处理函数）中编写逻辑，并在 `getAppConfig()` 里注册到 `.onMqttMessage`。
+
+默认 Topic 消息格式为 `R,G,B`（如 `255,0,0` 设为红色）。
 
 ### 周期性业务逻辑
 

@@ -12,7 +12,7 @@ public:
   void begin();
   void loop();
   void disconnect();
-  bool isConnected() const;
+  bool isConnected();
   bool publish(const char* topic, const char* payload, bool retained = false);
 
 private:

@@ -1,4 +1,10 @@
-# ESP32 Provisioning Framework
+﻿# ESP32 Provisioning Framework
+
+[![GitHub Stars](https://img.shields.io/github/stars/dengjue/esp32-provisioning-framework?style=social)](https://github.com/dengjue/esp32-provisioning-framework)
+[![GitHub License](https://img.shields.io/github/license/dengjue/esp32-provisioning-framework)](LICENSE)
+[![Platform ESP32](https://img.shields.io/badge/platform-ESP32-green)](https://www.espressif.com/)
+[![Arduino IDE](https://img.shields.io/badge/Arduino-IDE-green?logo=arduino)](https://www.arduino.cc/)
+[![PlatformIO](https://img.shields.io/badge/PlatformIO-Framework-blue?logo=platformio)](https://platformio.org/)
 
 ESP32 二次开发框架：巴法云 BLE 配网、MQTT 连接、LED 状态指示、断网重连与自动进入配网模式。
 
@@ -248,3 +254,4 @@ BemfaFramework::led().setSolid(255, 0, 0);
 ## License
 
 MIT — 见 [LICENSE](LICENSE)。
+
